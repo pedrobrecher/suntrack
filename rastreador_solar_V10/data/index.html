@@ -1,0 +1,130 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rastreador Solar</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#060d1a;color:#e6edf3;min-height:100vh;padding-top:72px}
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:#060d1aee;backdrop-filter:blur(12px);border-bottom:1px solid #1d3557;box-shadow:0 2px 20px #00000066}
+.nav-brand{font-size:.95rem;font-weight:700;color:#58a6ff;display:flex;align-items:center;gap:8px}
+.nav-brand span{background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-links{display:flex;gap:4px}
+.nav-item{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;text-decoration:none;color:#6b7280;font-size:.8rem;font-weight:500;transition:all .2s}
+.nav-item:hover{background:#1d3557;color:#e6edf3}
+.nav-ativo{background:#0d2a4a;color:#58a6ff;border:1px solid #1d4a7a}
+@media(max-width:600px){.nav-label{display:none}.nav-item{padding:8px 10px}}
+.max-w{max-width:960px;margin:0 auto;padding:24px}
+h1{font-size:1.6rem;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.sub{color:#6b7280;font-size:.78rem;margin-bottom:20px}
+.hero{text-align:center;padding:8px 0 24px}
+.solar-stage{position:relative;display:inline-flex;align-items:center;justify-content:center;margin:0 auto;padding:70px 80px}
+.painel-svg{width:280px;height:210px;filter:drop-shadow(0 0 30px #58a6ff44);transition:filter .8s ease}
+.ldr-card{position:absolute;background:#0a1628;border:1px solid #1d3557;border-radius:12px;padding:10px 12px;text-align:center;min-width:76px;transition:box-shadow .6s ease,border-color .6s ease}
+.ldr-card .lc-icon{font-size:1rem;margin-bottom:3px}
+.ldr-card .lc-lbl{font-size:.58rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.ldr-card .lc-val{font-size:1.15rem;font-weight:700;transition:color .6s ease}
+.ldr-tl{top:0;left:0}.ldr-tr{top:0;right:0}.ldr-bl{bottom:0;left:0}.ldr-br{bottom:0;right:0}
+.bottom-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;max-width:680px;margin:24px auto 0}
+.b-card{background:#0d1f38;border:1px solid #1d3557;border-radius:12px;padding:16px;text-align:center;transition:border-color .3s,transform .2s}
+.b-card:hover{transform:translateY(-2px);border-color:#58a6ff}
+.b-card .bc-icon{font-size:1.5rem;margin-bottom:6px}
+.b-card .bc-lbl{font-size:.65rem;color:#6b7280;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.b-card .bc-val{font-size:1.8rem;font-weight:700;line-height:1}
+.b-card .bc-unit{font-size:.72rem;color:#6b7280;margin-top:3px}
+.b-card.temp .bc-val{color:#ff7b72}.b-card.umid .bc-val{color:#58a6ff}.b-card.servo .bc-val{color:#ffa657;font-size:1.4rem}
+.srv-bar-bg{height:4px;background:#1d3557;border-radius:2px;margin-top:8px;overflow:hidden}
+.srv-bar-fill{height:4px;border-radius:2px;background:linear-gradient(90deg,#ffa657,#ff7b72);transition:width .8s ease}
+.status-chip{display:inline-flex;align-items:center;gap:6px;background:#0d1f38;border:1px solid #1d3557;border-radius:20px;padding:5px 14px;font-size:.72rem;color:#6b7280;margin-bottom:20px}
+.s-dot{width:7px;height:7px;border-radius:50%;background:#3fb950;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.last-upd{text-align:center;font-size:.68rem;color:#374151;margin-top:20px}
+</style></head><body>
+<nav class="navbar">
+  <div class="nav-brand">☀️ <span>Solar ESP32</span></div>
+  <div class="nav-links">
+    <a href="/" class="nav-item nav-ativo"><span>🏠</span><span class="nav-label">Dashboard</span></a>
+    <a href="/graficos" class="nav-item"><span>📈</span><span class="nav-label">Gráficos</span></a>
+    <a href="/performance" class="nav-item"><span>⚡</span><span class="nav-label">Performance</span></a>
+    <a href="/logs" class="nav-item"><span>📋</span><span class="nav-label">Logs</span></a>
+    <a href="/config" class="nav-item"><span>⚙️</span><span class="nav-label">Configurações</span></a>
+    <a href="/changelog" class="nav-item"><span>📜</span><span class="nav-label">Changelog</span></a>
+    <a href="/sobre" class="nav-item"><span>ℹ️</span><span class="nav-label">Sobre</span></a>
+  </div>
+</nav>
+<div class="max-w">
+  <div class="hero">
+    <h1>Rastreador Solar — ESP32</h1>
+    <p class="sub">Performance em Sistemas Ciberfísicos · PUCPR 2026</p>
+    <div class="status-chip"><div class="s-dot" id="dot"></div><span id="stxt">Conectando...</span></div>
+    <div style="display:flex;justify-content:center">
+      <div class="solar-stage">
+        <div class="ldr-card ldr-tl" id="card-tl"><div class="lc-icon">🔆</div><div class="lc-lbl">Sup. Esq.</div><div class="lc-val" id="v-tl">--</div></div>
+        <div class="ldr-card ldr-tr" id="card-tr"><div class="lc-icon">🔆</div><div class="lc-lbl">Sup. Dir.</div><div class="lc-val" id="v-tr">--</div></div>
+        <svg class="painel-svg" id="painel-svg" viewBox="0 0 280 210" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="pg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1a3a6e"/><stop offset="100%" style="stop-color:#0d1f38"/></linearGradient>
+            <linearGradient id="cg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1e4080;stop-opacity:.85"/><stop offset="100%" style="stop-color:#0f2857;stop-opacity:.85"/></linearGradient>
+            <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <radialGradient id="sunspot" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:#fbbf24;stop-opacity:.18"/><stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0"/></radialGradient>
+          </defs>
+          <rect x="4" y="4" width="272" height="202" rx="10" fill="#0a1628" stroke="#2a4a8a" stroke-width="2.5"/>
+          <rect x="10" y="10" width="260" height="190" rx="7" fill="url(#pg)" stroke="#1d3a70" stroke-width="1"/>
+          <g fill="url(#cg)" stroke="#2a5090" stroke-width=".6">
+            <rect x="14" y="14" width="58" height="42" rx="3"/><rect x="78" y="14" width="58" height="42" rx="3"/>
+            <rect x="142" y="14" width="58" height="42" rx="3"/><rect x="206" y="14" width="60" height="42" rx="3"/>
+            <rect x="14" y="62" width="58" height="42" rx="3"/><rect x="78" y="62" width="58" height="42" rx="3"/>
+            <rect x="142" y="62" width="58" height="42" rx="3"/><rect x="206" y="62" width="60" height="42" rx="3"/>
+            <rect x="14" y="110" width="58" height="42" rx="3"/><rect x="78" y="110" width="58" height="42" rx="3"/>
+            <rect x="142" y="110" width="58" height="42" rx="3"/><rect x="206" y="110" width="60" height="42" rx="3"/>
+            <rect x="14" y="158" width="58" height="38" rx="3"/><rect x="78" y="158" width="58" height="38" rx="3"/>
+            <rect x="142" y="158" width="58" height="38" rx="3"/><rect x="206" y="158" width="60" height="38" rx="3"/>
+          </g>
+          <g stroke="#3a6ab0" stroke-width=".8" opacity=".5">
+            <line x1="72" y1="14" x2="72" y2="196"/><line x1="136" y1="14" x2="136" y2="196"/><line x1="200" y1="14" x2="200" y2="196"/>
+            <line x1="14" y1="58" x2="266" y2="58"/><line x1="14" y1="106" x2="266" y2="106"/><line x1="14" y1="154" x2="266" y2="154"/>
+          </g>
+          <rect x="10" y="10" width="260" height="70" rx="7" fill="white" opacity=".04"/>
+          <rect x="4" y="4" width="272" height="202" rx="10" fill="none" stroke="#4a7acc" stroke-width="1.5" opacity=".5" filter="url(#glow)"/>
+          <circle cx="140" cy="105" r="22" fill="none" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="5,4" opacity=".7"/>
+          <circle cx="140" cy="105" r="5" fill="#ffa657" opacity=".9"/>
+          <text x="140" y="138" text-anchor="middle" font-size="11" fill="#ffa657" font-family="Inter,sans-serif" id="svg-ang">90°</text>
+          <ellipse id="sunspot-el" cx="140" cy="105" rx="80" ry="60" fill="url(#sunspot)" opacity="0"/>
+        </svg>
+        <div class="ldr-card ldr-bl" id="card-bl"><div class="lc-icon">🔆</div><div class="lc-lbl">Inf. Esq.</div><div class="lc-val" id="v-bl">--</div></div>
+        <div class="ldr-card ldr-br" id="card-br"><div class="lc-icon">🔆</div><div class="lc-lbl">Inf. Dir.</div><div class="lc-val" id="v-br">--</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-grid">
+    <div class="b-card temp"><div class="bc-icon">🌡️</div><div class="bc-lbl">Temperatura</div><div class="bc-val" id="temp">--</div><div class="bc-unit">°C</div></div>
+    <div class="b-card umid"><div class="bc-icon">💧</div><div class="bc-lbl">Umidade</div><div class="bc-val" id="umid">--</div><div class="bc-unit">%</div></div>
+    <div class="b-card servo"><div class="bc-icon">↕️</div><div class="bc-lbl">Servo Vertical</div><div class="bc-val" id="sv">--</div><div class="bc-unit">graus</div><div class="srv-bar-bg"><div class="srv-bar-fill" id="sv-bar" style="width:50%"></div></div></div>
+    <div class="b-card servo"><div class="bc-icon">↔️</div><div class="bc-lbl">Servo Horizontal</div><div class="bc-val" id="sh">--</div><div class="bc-unit">graus</div><div class="srv-bar-bg"><div class="srv-bar-fill" id="sh-bar" style="width:50%"></div></div></div>
+  </div>
+  <div class="last-upd" id="last-upd">Aguardando leitura...</div>
+</div>
+<script>
+const MAX=4095;
+function ldrStyle(val){const p=val/MAX;const cor=p>0.5?'#fbbf24':p>0.25?'#fb923c':'#6b7280';const glowAlpha=Math.round(p*80).toString(16).padStart(2,'0');const glowSize=Math.round(p*28);const glowColor=p>0.5?`#fbbf24${glowAlpha}`:p>0.25?`#fb923c${glowAlpha}`:'transparent';const border=p>0.5?'#fbbf24':p>0.25?'#fb923c44':'#1d3557';return{cor,glow:`0 0 ${glowSize}px ${glowColor}`,border};}
+function atualizar(){
+  fetch('/dados').then(r=>r.json()).then(d=>{
+    document.getElementById('temp').innerText=d.temperatura.toFixed(1);
+    document.getElementById('umid').innerText=d.umidade.toFixed(1);
+    document.getElementById('sv').innerText=d.servoV+'°';
+    document.getElementById('sh').innerText=d.servoH+'°';
+    document.getElementById('sv-bar').style.width=(d.servoV/180*100)+'%';
+    document.getElementById('sh-bar').style.width=(d.servoH/180*100)+'%';
+    document.getElementById('svg-ang').textContent=d.servoV+'°';
+    const ldrs={tl:d.ldrTL,tr:d.ldrTR,bl:d.ldrBL,br:d.ldrBR};
+    Object.entries(ldrs).forEach(([k,v])=>{const st=ldrStyle(v);const el=document.getElementById('v-'+k);const card=document.getElementById('card-'+k);el.innerText=v;el.style.color=st.cor;card.style.boxShadow=st.glow;card.style.borderColor=st.border;});
+    const avgLDR=(d.ldrTL+d.ldrTR+d.ldrBL+d.ldrBR)/4/MAX;
+    document.getElementById('sunspot-el').style.opacity=avgLDR*0.8;
+    document.getElementById('painel-svg').style.filter=`drop-shadow(0 0 ${Math.round(avgLDR*40)+10}px #58a6ff${Math.round(avgLDR*80+20).toString(16).padStart(2,'0')})`;
+    document.getElementById('dot').style.background='#3fb950';
+    document.getElementById('stxt').innerText='Conectado ao ESP32'+(d.ntpOk?' · NTP ✓':'');
+    document.getElementById('last-upd').innerText='Última atualização: '+new Date().toLocaleTimeString('pt-BR');
+  }).catch(()=>{document.getElementById('dot').style.background='#ff7b72';document.getElementById('stxt').innerText='Sem conexão — reconectando...';});
+}
+atualizar();setInterval(atualizar,2000);
+</script>
+</body></html>

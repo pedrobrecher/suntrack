@@ -1,0 +1,171 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gráficos 24h</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#060d1a;color:#e6edf3;min-height:100vh;padding-top:72px}
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:#060d1aee;backdrop-filter:blur(12px);border-bottom:1px solid #1d3557}
+.nav-brand{font-size:.95rem;font-weight:700;color:#58a6ff;display:flex;align-items:center;gap:8px}
+.nav-brand span{background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-links{display:flex;gap:4px}
+.nav-item{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;text-decoration:none;color:#6b7280;font-size:.8rem;transition:all .2s}
+.nav-item:hover{background:#1d3557;color:#e6edf3}
+.nav-ativo{background:#0d2a4a;color:#58a6ff;border:1px solid #1d4a7a}
+@media(max-width:600px){.nav-label{display:none}.nav-item{padding:8px 10px}}
+.max-w{max-width:960px;margin:0 auto;padding:24px}
+h1{font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#6b7280;font-size:.78rem;margin-bottom:20px}
+.sec{background:#0d1f38;border:1px solid #1d3557;border-radius:14px;padding:20px;margin-bottom:16px}
+.sec-title{font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px}
+canvas{max-height:200px}
+.info{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:#0d1f38;border:1px solid #1d3557;padding:5px 14px;border-radius:20px;font-size:.74rem;color:#6b7280}
+.chip b{color:#e6edf3}
+#load{text-align:center;padding:60px;color:#6b7280}
+.refresh-btn{background:#0d1f38;border:1px solid #1d3557;color:#93c5fd;padding:7px 18px;border-radius:8px;font-size:.78rem;cursor:pointer;margin-bottom:16px}
+/* Aviso de dados sem NTP */
+.ntp-warn{background:#2d2a0a;border:1px solid #3a360a;color:#fbbf24;border-radius:8px;padding:10px 14px;font-size:.72rem;margin-bottom:14px;display:none}
+/* Separador de dia no gráfico */
+</style></head><body>
+<nav class="navbar">
+  <div class="nav-brand">☀️ <span>Solar ESP32</span></div>
+  <div class="nav-links">
+    <a href="/" class="nav-item"><span>🏠</span><span class="nav-label">Dashboard</span></a>
+    <a href="/graficos" class="nav-item nav-ativo"><span>📈</span><span class="nav-label">Gráficos</span></a>
+    <a href="/performance" class="nav-item"><span>⚡</span><span class="nav-label">Performance</span></a>
+    <a href="/logs" class="nav-item"><span>📋</span><span class="nav-label">Logs</span></a>
+    <a href="/config" class="nav-item"><span>⚙️</span><span class="nav-label">Configurações</span></a>
+    <a href="/changelog" class="nav-item"><span>📜</span><span class="nav-label">Changelog</span></a>
+    <a href="/sobre" class="nav-item"><span>ℹ️</span><span class="nav-label">Sobre</span></a>
+  </div>
+</nav>
+<div class="max-w">
+  <h1>📈 Histórico de 24 Horas</h1>
+  <p class="sub">Dados coletados a cada 5 minutos · Buffer circular de 288 registros</p>
+  <div class="ntp-warn" id="ntp-warn">⚠️ NTP não sincronizado — timestamps são relativos ao boot (sem data real). Conecte-se a uma rede com acesso à internet para sincronizar o horário.</div>
+  <button class="refresh-btn" onclick="load()">↻ Atualizar gráficos</button>
+  <div class="info" id="info"><div class="chip">Carregando...</div></div>
+  <div id="load">⏳ Buscando dados do ESP32...</div>
+  <div id="charts" style="display:none;flex-direction:column;gap:16px">
+    <div class="sec"><div class="sec-title">🌡️ Temperatura (°C)</div><canvas id="cT"></canvas></div>
+    <div class="sec"><div class="sec-title">💧 Umidade (%)</div><canvas id="cU"></canvas></div>
+    <div class="sec"><div class="sec-title">☀️ Luminosidade LDR média</div><canvas id="cL"></canvas></div>
+    <div class="sec"><div class="sec-title">🔧 Posição dos Servos (graus)</div><canvas id="cS"></canvas></div>
+  </div>
+</div>
+<script>
+let C={};
+
+// Converte epoch Unix (segundos) para label de data+hora no fuso de Brasília (UTC-3)
+// Se o epoch for pequeno (< 1 ano em ms relativo), assume modo sem-NTP e formata como HH:MM
+function fmtLabel(epoch, ntpOk) {
+  if (!ntpOk || epoch < 1700000000) {
+    // Modo relativo: epoch é segundos desde o boot
+    const h = Math.floor(epoch/3600), m = Math.floor(epoch%3600/60);
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  }
+  // Modo NTP: formata DD/MM HH:MM no horário local do browser
+  const d = new Date(epoch * 1000);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return dd+'/'+mm+' '+hh+':'+mi;
+}
+
+// Detecta mudanças de dia para adicionar anotação vertical
+function buildDayAnnotations(dados, ntpOk) {
+  if (!ntpOk) return [];
+  const annotations = {};
+  let lastDay = -1;
+  dados.forEach((r, i) => {
+    const d = new Date(r.epoch * 1000);
+    const day = d.getDate();
+    if (day !== lastDay && lastDay !== -1) {
+      const label = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+      annotations['day'+i] = {
+        type:'line', xMin:i, xMax:i, borderColor:'#58a6ff66', borderWidth:1, borderDash:[4,4],
+        label:{content:'← '+label, display:true, color:'#58a6ff', font:{size:9}, position:'start'}
+      };
+    }
+    lastDay = day;
+  });
+  return annotations;
+}
+
+const O = (cor, lbl, mn, mx, annotations) => ({
+  responsive:true, animation:{duration:500},
+  plugins:{
+    legend:{display:false},
+    tooltip:{backgroundColor:'#0d1f38',borderColor:'#1d3557',borderWidth:1,titleColor:'#6b7280',bodyColor:'#e6edf3',
+      callbacks:{label:c=>lbl+': '+c.parsed.y}},
+    annotation: annotations ? {annotations} : {}
+  },
+  scales:{
+    x:{ticks:{color:'#6b7280',maxTicksLimit:12,font:{size:9}},grid:{color:'#1d3557'}},
+    y:{min:mn,max:mx,ticks:{color:'#6b7280',font:{size:9}},grid:{color:'#1d3557'}}
+  }
+});
+
+function mk(id, lb, data, cor, lbl, mn, mx, annotations) {
+  if(C[id])C[id].destroy();
+  const ctx=document.getElementById(id).getContext('2d');
+  const g=ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,cor+'44');g.addColorStop(1,cor+'00');
+  C[id]=new Chart(ctx,{type:'line',data:{labels:lb,datasets:[{data,borderColor:cor,backgroundColor:g,borderWidth:2,pointRadius:data.length>60?0:3,tension:0.35,fill:true}]},options:O(cor,lbl,mn,mx,annotations)});
+}
+
+function load() {
+  document.getElementById('load').style.display='block';
+  document.getElementById('charts').style.display='none';
+  fetch('/historico').then(r=>r.json()).then(d=>{
+    document.getElementById('load').style.display='none';
+    const ntpOk = d.ntpOk === true;
+    document.getElementById('ntp-warn').style.display = ntpOk ? 'none' : 'block';
+
+    if(!d.dados||!d.dados.length){
+      document.getElementById('load').style.display='block';
+      document.getElementById('load').innerText='⏳ Aguarde 5 minutos para o primeiro registro.';
+      return;
+    }
+    document.getElementById('charts').style.display='flex';
+
+    const lb = d.dados.map(r => fmtLabel(r.epoch, ntpOk));
+    const T=d.dados.map(r=>r.temp), U=d.dados.map(r=>r.umid);
+    const L=d.dados.map(r=>r.ldr), SH=d.dados.map(r=>r.sh), SV=d.dados.map(r=>r.sv);
+    const cob=Math.round(d.dados.length*5/60*10)/10;
+
+    // Conta dias distintos
+    let dias = new Set();
+    if (ntpOk) d.dados.forEach(r=>dias.add(new Date(r.epoch*1000).toDateString()));
+    const diasInfo = ntpOk && dias.size > 1 ? `<div class='chip'>📅 <b>${dias.size} dias</b></div>` : '';
+
+    document.getElementById('info').innerHTML=
+      `<div class='chip'>📊 <b>${d.dados.length}</b> registros (${cob}h)</div>`+
+      `<div class='chip'>🌡️ <b>${Math.min(...T).toFixed(1)}–${Math.max(...T).toFixed(1)}°C</b></div>`+
+      `<div class='chip'>💧 <b>${Math.min(...U).toFixed(1)}–${Math.max(...U).toFixed(1)}%</b></div>`+
+      diasInfo+
+      (ntpOk ? `<div class='chip' style='color:#3fb950'>🕐 NTP ✓</div>` : `<div class='chip' style='color:#fbbf24'>⚠️ Sem NTP</div>`);
+
+    const ann = buildDayAnnotations(d.dados, ntpOk);
+    mk('cT',lb,T,'#ff7b72','°C',Math.floor(Math.min(...T))-2,Math.ceil(Math.max(...T))+2,ann);
+    mk('cU',lb,U,'#58a6ff','%',Math.floor(Math.min(...U))-5,Math.ceil(Math.max(...U))+5,ann);
+    mk('cL',lb,L,'#fbbf24','ADC',Math.max(0,Math.min(...L)-200),Math.min(4095,Math.max(...L)+200),ann);
+
+    if(C['cS'])C['cS'].destroy();
+    const ctx=document.getElementById('cS').getContext('2d');
+    const gH=ctx.createLinearGradient(0,0,0,200);gH.addColorStop(0,'#ffa65744');gH.addColorStop(1,'#ffa65700');
+    const gV=ctx.createLinearGradient(0,0,0,200);gV.addColorStop(0,'#d2a8ff44');gV.addColorStop(1,'#d2a8ff00');
+    C['cS']=new Chart(ctx,{type:'line',data:{labels:lb,datasets:[
+      {label:'Pan (H)',data:SH,borderColor:'#ffa657',backgroundColor:gH,borderWidth:2,pointRadius:d.dados.length>60?0:3,tension:0.35,fill:true},
+      {label:'Tilt (V)',data:SV,borderColor:'#d2a8ff',backgroundColor:gV,borderWidth:2,pointRadius:d.dados.length>60?0:3,tension:0.35,fill:true}
+    ]},options:{responsive:true,animation:{duration:500},plugins:{legend:{display:true,labels:{color:'#6b7280',boxWidth:10,font:{size:10}}},tooltip:{backgroundColor:'#0d1f38',borderColor:'#1d3557',borderWidth:1,titleColor:'#6b7280',bodyColor:'#e6edf3'},annotation:ann?{annotations:ann}:{}},scales:{x:{ticks:{color:'#6b7280',maxTicksLimit:12,font:{size:9}},grid:{color:'#1d3557'}},y:{min:0,max:180,ticks:{color:'#6b7280',font:{size:9}},grid:{color:'#1d3557'}}}}});
+  }).catch(()=>{document.getElementById('load').innerText='❌ Erro ao carregar dados.';});
+}
+// Carrega plugin de anotação do Chart.js para linhas de separação de dias
+const s=document.createElement('script');
+s.src='https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js';
+s.onload=load;document.head.appendChild(s);
+</script>
+</body></html>

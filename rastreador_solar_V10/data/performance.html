@@ -1,0 +1,201 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Performance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#060d1a;color:#e6edf3;min-height:100vh;padding-top:72px}
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:#060d1aee;backdrop-filter:blur(12px);border-bottom:1px solid #1d3557;box-shadow:0 2px 20px #00000066}
+.nav-brand{font-size:.95rem;font-weight:700;color:#58a6ff;display:flex;align-items:center;gap:8px;letter-spacing:.02em}
+.nav-brand span{background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-links{display:flex;gap:4px}
+.nav-item{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;text-decoration:none;color:#6b7280;font-size:.8rem;font-weight:500;transition:all .2s}
+.nav-item:hover{background:#1d3557;color:#e6edf3}
+.nav-ativo{background:#0d2a4a;color:#58a6ff;border:1px solid #1d4a7a}
+@media(max-width:600px){.nav-label{display:none}.nav-item{padding:8px 10px}}
+h1{font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#6b7280;font-size:.78rem;margin-bottom:20px}
+.sec{background:#0d1f38;border:1px solid #1d3557;border-radius:14px;padding:20px;margin-bottom:16px}
+.sec-title{font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.metric{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1d3557}
+.metric:last-child{border-bottom:none}
+.metric-label{font-size:.78rem;color:#6b7280}
+.metric-value{font-size:.82rem;font-weight:600;font-family:'Courier New',monospace}
+.green{color:#3fb950}.yellow{color:#fbbf24}.red{color:#ff7b72}.blue{color:#58a6ff}.orange{color:#ffa657}
+.max-w{max-width:960px;margin:0 auto;padding:24px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:640px){.grid-2{grid-template-columns:1fr}}
+
+
+    canvas{max-height:160px}
+    .gauge-row{display:flex;justify-content:space-around;flex-wrap:wrap;gap:14px;margin-bottom:16px}
+    .gauge{position:relative;width:84px;height:84px;text-align:center}
+    .gauge svg{transform:rotate(-90deg)}
+    .gauge-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+    .gauge-val{font-size:.95rem;font-weight:700;color:#e6edf3;display:block}
+    .gauge-sub{font-size:.55rem;color:#6b7280;display:block;margin-top:1px}
+    .gauge-name{font-size:.65rem;color:#6b7280;margin-top:4px}
+    .fn-table,.tasks-table{width:100%;border-collapse:collapse;font-size:.76rem}
+    .fn-table th,.tasks-table th{padding:8px 10px;color:#6b7280;font-weight:500;border-bottom:1px solid #1d3557;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;text-align:left}
+    .fn-table td,.tasks-table td{padding:8px 10px;border-bottom:1px solid #0d1117;color:#e6edf3}
+    .fn-table tr:hover td,.tasks-table tr:hover td{background:#1d3557}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:600}
+    .fast{background:#1a3a22;color:#3fb950}.med{background:#2d2a0a;color:#fbbf24}.slow{background:#2d0f0f;color:#ff7b72}
+    .uptime-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+    .chip{background:#0d1f38;border:1px solid #1d3557;border-radius:20px;padding:5px 14px;font-size:.74rem;color:#6b7280}
+    .chip b{color:#e6edf3}
+    .live{width:7px;height:7px;border-radius:50%;background:#3fb950;display:inline-block;animation:pulse 2s infinite;margin-right:3px}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .signal-bars{display:flex;align-items:flex-end;gap:3px;margin:8px 0}
+    .sbar{width:8px;border-radius:2px;background:#1d3557;transition:background .4s}
+    .sbar.on{background:#3fb950}
+    .refresh-btn{background:#0d1f38;border:1px solid #1d3557;color:#93c5fd;padding:7px 18px;border-radius:8px;font-size:.78rem;cursor:pointer;margin-bottom:16px}
+    
+</style></head><body>
+<nav class="navbar">
+  <div class="nav-brand">☀️ <span>Solar ESP32</span></div>
+  <div class="nav-links">
+    <a href="/" class="nav-item"><span>🏠</span><span class="nav-label">Dashboard</span></a>
+    <a href="/graficos" class="nav-item"><span>📈</span><span class="nav-label">Gráficos</span></a>
+    <a href="/performance" class="nav-item nav-ativo"><span>⚡</span><span class="nav-label">Performance</span></a>
+    <a href="/logs" class="nav-item "><span>📋</span><span class="nav-label">Logs</span></a>
+    <a href="/config" class="nav-item "><span>⚙️</span><span class="nav-label">Configurações</span></a>
+    <a href="/changelog" class="nav-item "><span>📜</span><span class="nav-label">Changelog</span></a>
+    <a href="/sobre" class="nav-item "><span>ℹ️</span><span class="nav-label">Sobre</span></a>
+  </div>
+</nav>
+
+  <div class='max-w'>
+    <h1>⚡ Monitor de Performance</h1>
+    <p class='sub'>Métricas em tempo real do ESP32 · Atualiza a cada 5s</p>
+    <button class='refresh-btn' onclick='atualizar()'>↻ Atualizar</button>
+    <div class='uptime-bar' id='uptime-bar'><div class='chip'>Carregando...</div></div>
+    <div class='grid-2'>
+      <div class='sec'>
+        <div class='sec-title'>🖥️ CPU e Memória</div>
+        <div class='gauge-row'>
+          <div><div class='gauge'><svg width='84' height='84' viewBox='0 0 84 84'><circle cx='42' cy='42' r='34' fill='none' stroke='#1d3557' stroke-width='9'/><circle id='g-cpu' cx='42' cy='42' r='34' fill='none' stroke='#3fb950' stroke-width='9' stroke-dasharray='213' stroke-dashoffset='213' stroke-linecap='round'/></svg><div class='gauge-label'><span class='gauge-val' id='p-cpu'>--%</span><span class='gauge-sub'>CPU</span></div></div><div class='gauge-name'>Uso de CPU</div></div>
+          <div><div class='gauge'><svg width='84' height='84' viewBox='0 0 84 84'><circle cx='42' cy='42' r='34' fill='none' stroke='#1d3557' stroke-width='9'/><circle id='g-heap' cx='42' cy='42' r='34' fill='none' stroke='#58a6ff' stroke-width='9' stroke-dasharray='213' stroke-dashoffset='213' stroke-linecap='round'/></svg><div class='gauge-label'><span class='gauge-val' id='p-heap'>--%</span><span class='gauge-sub'>Heap</span></div></div><div class='gauge-name'>Uso de Heap</div></div>
+          <div><div class='gauge'><svg width='84' height='84' viewBox='0 0 84 84'><circle cx='42' cy='42' r='34' fill='none' stroke='#1d3557' stroke-width='9'/><circle id='g-flash' cx='42' cy='42' r='34' fill='none' stroke='#ffa657' stroke-width='9' stroke-dasharray='213' stroke-dashoffset='213' stroke-linecap='round'/></svg><div class='gauge-label'><span class='gauge-val' id='p-flash'>--%</span><span class='gauge-sub'>Flash</span></div></div><div class='gauge-name'>Uso de Flash</div></div>
+          <div><div class='gauge'><svg width='84' height='84' viewBox='0 0 84 84'><circle cx='42' cy='42' r='34' fill='none' stroke='#1d3557' stroke-width='9'/><circle id='g-psram' cx='42' cy='42' r='34' fill='none' stroke='#d2a8ff' stroke-width='9' stroke-dasharray='213' stroke-dashoffset='213' stroke-linecap='round'/></svg><div class='gauge-label'><span class='gauge-val' id='p-psram'>N/A</span><span class='gauge-sub'>PSRAM</span></div></div><div class='gauge-name'>PSRAM</div></div>
+        </div>
+        <div class='metric'><span class='metric-label'>Freq. CPU</span><span class='metric-value green' id='cpu-f'>--</span></div>
+        <div class='metric'><span class='metric-label'>Tasks FreeRTOS</span><span class='metric-value blue' id='n-tasks'>--</span></div>
+        <div class='metric'><span class='metric-label'>Heap Total</span><span class='metric-value' id='h-total'>--</span></div>
+        <div class='metric'><span class='metric-label'>Heap Livre</span><span class='metric-value green' id='h-livre'>--</span></div>
+        <div class='metric'><span class='metric-label'>Heap Mínimo Hist.</span><span class='metric-value yellow' id='h-min'>--</span></div>
+        <div class='metric'><span class='metric-label'>Flash Total</span><span class='metric-value' id='f-total'>--</span></div>
+        <div class='metric'><span class='metric-label'>Sketch Usado</span><span class='metric-value' id='f-usado'>--</span></div>
+        <div class='metric'><span class='metric-label'>Sketch Livre</span><span class='metric-value green' id='f-livre'>--</span></div>
+        <div class='metric'><span class='metric-label'>PSRAM Total</span><span class='metric-value' id='ps-total'>--</span></div>
+        <div class='metric'><span class='metric-label'>PSRAM Livre</span><span class='metric-value' id='ps-livre'>--</span></div>
+        <div class='metric'><span class='metric-label'>Stack livre — loopTask</span><span class='metric-value blue' id='st-loop'>--</span></div>
+        <div class='metric'><span class='metric-label'>Stack livre — sensores</span><span class='metric-value blue' id='st-sens'>--</span></div>
+        <div class='metric'><span class='metric-label'>Stack livre — manutencao</span><span class='metric-value blue' id='st-man'>--</span></div>
+      </div>
+      <div class='sec'>
+        <div class='sec-title'>📡 Wi-Fi e Sensores</div>
+        <div class='signal-bars' id='sig-bars'>
+          <div class='sbar' id='sb1' style='height:12px'></div>
+          <div class='sbar' id='sb2' style='height:20px'></div>
+          <div class='sbar' id='sb3' style='height:28px'></div>
+          <div class='sbar' id='sb4' style='height:36px'></div>
+        </div>
+        <div class='metric'><span class='metric-label'>Status</span><span class='metric-value green' id='w-status'>--</span></div>
+        <div class='metric'><span class='metric-label'>SSID</span><span class='metric-value blue' id='w-ssid'>--</span></div>
+        <div class='metric'><span class='metric-label'>IP</span><span class='metric-value' id='w-ip'>--</span></div>
+        <div class='metric'><span class='metric-label'>Canal</span><span class='metric-value' id='w-canal'>--</span></div>
+        <div class='metric'><span class='metric-label'>RSSI</span><span class='metric-value' id='w-rssi'>--</span></div>
+        <div class='sec-title' style='margin-top:14px'>📟 Sensores Atuais</div>
+        <div class='metric'><span class='metric-label'>Temperatura</span><span class='metric-value red' id='s-t'>--</span></div>
+        <div class='metric'><span class='metric-label'>Umidade</span><span class='metric-value blue' id='s-u'>--</span></div>
+        <div class='metric'><span class='metric-label'>LDR TL / TR</span><span class='metric-value' id='s-l1'>--</span></div>
+        <div class='metric'><span class='metric-label'>LDR BL / BR</span><span class='metric-value' id='s-l2'>--</span></div>
+        <div class='metric'><span class='metric-label'>Servo V / H</span><span class='metric-value orange' id='s-sv'>--</span></div>
+      </div>
+    </div>
+    <div class='sec'>
+      <div class='sec-title'>⏱️ Tempo de Execução das Funções</div>
+      <table class='fn-table'><thead><tr><th>Função</th><th>Descrição</th><th>µs</th><th>ms</th><th>Status</th></tr></thead>
+      <tbody id='fn-body'><tr><td colspan='5' style='text-align:center;color:#6b7280;padding:16px'>Carregando...</td></tr></tbody></table>
+    </div>
+    <div class='sec'>
+      <div class='sec-title'>🧵 Tasks FreeRTOS</div>
+      <table class='tasks-table'><thead><tr><th>Task</th><th>Responsabilidade</th><th>Núcleo</th><th>Prioridade</th><th>Estado</th></tr></thead>
+      <tbody id='tasks-body'><tr><td colspan='5' style='text-align:center;color:#6b7280;padding:16px'>Carregando...</td></tr></tbody></table>
+    </div>
+    <div class='grid-2'>
+      <div class='sec'><div class='sec-title'>📊 Heap Livre (KB)</div><canvas id='cHeap'></canvas></div>
+      <div class='sec'><div class='sec-title'>📊 Heap Mínimo (KB)</div><canvas id='cMin'></canvas></div>
+    </div>
+  </div>
+  <script>
+    let cH,cM;
+    const kb=b=>(b/1024).toFixed(1)+' KB';
+    const mb=b=>(b/1024/1024).toFixed(2)+' MB';
+    function gauge(id,pct,cor){const c=document.getElementById(id),r=34,t=2*Math.PI*r;c.style.strokeDashoffset=t-(pct/100)*t;c.style.stroke=cor;}
+    function rssiC(r){return r>-50?'#3fb950':r>-70?'#fbbf24':'#ff7b72';}
+    function rssiL(r){return r>-50?'Excelente':r>-65?'Bom':r>-75?'Regular':'Fraco';}
+    function badge(us){return us<1000?'<span class="badge fast">Rápido</span>':us<10000?'<span class="badge med">Médio</span>':'<span class="badge slow">Lento</span>';}
+    function fmt(s){return (s>3600?Math.floor(s/3600)+'h ':'')+(Math.floor(s%3600/60)?Math.floor(s%3600/60)+'m ':'')+(s%60)+'s';}
+    function mkC(id,lb,data,cor){const ctx=document.getElementById(id).getContext('2d');const g=ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,cor+'44');g.addColorStop(1,cor+'00');return new Chart(ctx,{type:'line',data:{labels:lb,datasets:[{data,borderColor:cor,backgroundColor:g,borderWidth:2,pointRadius:data.length>30?0:3,tension:0.3,fill:true}]},options:{responsive:true,animation:{duration:400},plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#6b7280',maxTicksLimit:8,font:{size:8}},grid:{color:'#1d3557'}},y:{ticks:{color:'#6b7280',font:{size:8}},grid:{color:'#1d3557'}}}}});}
+    function atualizar(){
+      fetch('/perfdata').then(r=>r.json()).then(d=>{
+        document.getElementById('uptime-bar').innerHTML=`<div class='chip'><span class='live'></span>Online há <b>${fmt(d.uptime_s)}</b></div><div class='chip'>CPU <b>${d.cpu_freq_mhz} MHz</b></div><div class='chip'>Tasks: <b>${d.num_tasks}</b></div><div class='chip'>Rastreamento: <b>${d.rastreamento?'ativo':'pausado'}</b></div><div class='chip'>${new Date().toLocaleTimeString('pt-BR')}</div>`;
+        gauge('g-cpu', d.cpu_pct,'#3fb950');
+        document.getElementById('p-cpu').innerText=d.cpu_pct+'%';
+        gauge('g-heap', d.heap.pct_usado,'#58a6ff');
+        const fp=Math.round(d.flash.sketch_usado/d.flash.total*100);
+        gauge('g-flash',fp,'#ffa657');
+        const pp=d.psram.total>0?Math.round((d.psram.total-d.psram.livre)/d.psram.total*100):0;
+        gauge('g-psram',pp,'#d2a8ff');
+        document.getElementById('p-heap').innerText=d.heap.pct_usado+'%';
+        document.getElementById('p-flash').innerText=fp+'%';
+        document.getElementById('p-psram').innerText=d.psram.total>0?pp+'%':'N/A';
+        document.getElementById('cpu-f').innerText=d.cpu_freq_mhz+' MHz';
+        document.getElementById('n-tasks').innerText=d.num_tasks+' tasks';
+        document.getElementById('h-total').innerText=kb(d.heap.total);
+        document.getElementById('h-livre').innerText=kb(d.heap.livre);
+        document.getElementById('h-min').innerText=kb(d.heap.minimo);
+        document.getElementById('f-total').innerText=mb(d.flash.total);
+        document.getElementById('f-usado').innerText=kb(d.flash.sketch_usado);
+        document.getElementById('f-livre').innerText=kb(d.flash.sketch_livre);
+        document.getElementById('ps-total').innerText=d.psram.total>0?kb(d.psram.total):'Não disponível';
+        document.getElementById('ps-livre').innerText=d.psram.total>0?kb(d.psram.livre):'Não disponível';
+        document.getElementById('st-loop').innerText=d.stack.loop+' B';
+        document.getElementById('st-sens').innerText=d.stack.sensores+' B';
+        document.getElementById('st-man').innerText=d.stack.manutencao+' B';
+        const rs=d.wifi.rssi;
+        const str=rs>-50?4:rs>-65?3:rs>-75?2:1;
+        [1,2,3,4].forEach(i=>{document.getElementById('sb'+i).classList.toggle('on',i<=str);});
+        document.getElementById('w-status').innerText=d.wifi.status;
+        document.getElementById('w-ssid').innerText=d.wifi.ssid;
+        document.getElementById('w-ip').innerText=d.wifi.ip;
+        document.getElementById('w-canal').innerText='Canal '+d.wifi.canal;
+        document.getElementById('w-rssi').innerText=rs+' dBm ('+rssiL(rs)+')';
+        document.getElementById('w-rssi').style.color=rssiC(rs);
+        document.getElementById('s-t').innerText=d.sensores.temperatura.toFixed(1)+' °C';
+        document.getElementById('s-u').innerText=d.sensores.umidade.toFixed(1)+' %';
+        document.getElementById('s-l1').innerText=d.sensores.ldrTL+' / '+d.sensores.ldrTR;
+        document.getElementById('s-l2').innerText=d.sensores.ldrBL+' / '+d.sensores.ldrBR;
+        document.getElementById('s-sv').innerText='V:'+d.sensores.servoV+'° H:'+d.sensores.servoH+'°';
+        const fns=[['rastrearSol()','Lê LDRs, controle P, lerp servo',d.tempos_us.rastrearSol],['lerDHT()','Temperatura e umidade DHT11',d.tempos_us.lerDHT],['atualizarOLED()','Renderiza display OLED I2C',d.tempos_us.atualizarOLED],['salvarHistorico()','Grava no buffer circular 24h',d.tempos_us.salvarHistorico],['handleClient()','Processa requisições HTTP',d.tempos_us.webServer]];
+        document.getElementById('fn-body').innerHTML=fns.map(([fn,desc,us])=>`<tr><td style='color:#3fb950;font-family:monospace'>${fn}</td><td style='color:#9ca3af'>${desc}</td><td>${us}</td><td>${(us/1000).toFixed(3)}</td><td>${badge(us)}</td></tr>`).join('');
+        document.getElementById('tasks-body').innerHTML=d.tasks.map(t=>`<tr><td style='color:#58a6ff;font-family:monospace'>${t.nome}</td><td style='color:#9ca3af'>${t.resp}</td><td>${t.core}</td><td>${t.prio}</td><td>🟢 ${t.estado} · stack livre ${t.stack_livre} B</td></tr>`).join('');
+        if(d.historico_perf&&d.historico_perf.length){
+          const lb=d.historico_perf.map(r=>{const s=r.t;return Math.floor(s/3600)+'h'+String(Math.floor(s%3600/60)).padStart(2,'0');});
+          const hd=d.historico_perf.map(r=>Math.round(r.heap/1024));
+          const md=d.historico_perf.map(r=>Math.round(r.minheap/1024));
+          if(cH)cH.destroy(); if(cM)cM.destroy();
+          cH=mkC('cHeap',lb,hd,'#58a6ff');
+          cM=mkC('cMin',lb,md,'#fbbf24');
+        }
+      }).catch(e=>console.error(e));
+    }
+    atualizar();
+    setInterval(atualizar,5000);
+  </script>
+</body></html>
+</body></html>

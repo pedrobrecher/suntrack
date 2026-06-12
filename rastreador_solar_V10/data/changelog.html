@@ -1,0 +1,131 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rastreador Solar</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#060d1a;color:#e6edf3;min-height:100vh;padding-top:72px}
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:#060d1aee;backdrop-filter:blur(12px);border-bottom:1px solid #1d3557;box-shadow:0 2px 20px #00000066}
+.nav-brand{font-size:.95rem;font-weight:700;color:#58a6ff;display:flex;align-items:center;gap:8px;letter-spacing:.02em}
+.nav-brand span{background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-links{display:flex;gap:4px}
+.nav-item{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;text-decoration:none;color:#6b7280;font-size:.8rem;font-weight:500;transition:all .2s}
+.nav-item:hover{background:#1d3557;color:#e6edf3}
+.nav-ativo{background:#0d2a4a;color:#58a6ff;border:1px solid #1d4a7a}
+@media(max-width:600px){.nav-label{display:none}.nav-item{padding:8px 10px}}
+h1{font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#6b7280;font-size:.78rem;margin-bottom:20px}
+.sec{background:#0d1f38;border:1px solid #1d3557;border-radius:14px;padding:20px;margin-bottom:16px}
+.sec-title{font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.metric{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1d3557}
+.metric:last-child{border-bottom:none}
+.metric-label{font-size:.78rem;color:#6b7280}
+.metric-value{font-size:.82rem;font-weight:600;font-family:'Courier New',monospace}
+.green{color:#3fb950}.yellow{color:#fbbf24}.red{color:#ff7b72}.blue{color:#58a6ff}.orange{color:#ffa657}
+.max-w{max-width:960px;margin:0 auto;padding:24px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:640px){.grid-2{grid-template-columns:1fr}}
+
+
+    .ver{position:relative;padding-left:26px;margin-bottom:18px}
+    .ver::before{content:'';position:absolute;left:6px;top:6px;width:9px;height:9px;border-radius:50%;background:#58a6ff}
+    .ver::after{content:'';position:absolute;left:10px;top:18px;bottom:-14px;width:1px;background:#1d3557}
+    .ver:last-child::after{display:none}
+    .ver .v-tag{display:inline-block;background:#0d2a4a;color:#58a6ff;border:1px solid #1d4a7a;border-radius:6px;padding:2px 10px;font-size:.74rem;font-weight:700;margin-bottom:6px;font-family:'Courier New',monospace}
+    .ver .v-tag.atual{background:#1a3a22;color:#3fb950;border-color:#1d4a2a}
+    .ver ul{margin:4px 0 0 16px;color:#9ca3af;font-size:.78rem;line-height:1.7}
+  
+</style></head><body>
+<nav class="navbar">
+  <div class="nav-brand">☀️ <span>Solar ESP32</span></div>
+  <div class="nav-links">
+    <a href="/" class="nav-item"><span>🏠</span><span class="nav-label">Dashboard</span></a>
+    <a href="/graficos" class="nav-item"><span>📈</span><span class="nav-label">Gráficos</span></a>
+    <a href="/performance" class="nav-item "><span>⚡</span><span class="nav-label">Performance</span></a>
+    <a href="/logs" class="nav-item "><span>📋</span><span class="nav-label">Logs</span></a>
+    <a href="/config" class="nav-item "><span>⚙️</span><span class="nav-label">Configurações</span></a>
+    <a href="/changelog" class="nav-item nav-ativo"><span>📜</span><span class="nav-label">Changelog</span></a>
+    <a href="/sobre" class="nav-item "><span>ℹ️</span><span class="nav-label">Sobre</span></a>
+  </div>
+</nav>
+
+  <div class='max-w'>
+    <h1>📜 Changelog</h1>
+    <p class='sub'>Histórico de versões do firmware do Rastreador Solar</p>
+    <div class='sec'>
+
+      <div class='ver'><span class='v-tag atual'>v10 · atual</span>
+        <ul>
+          <li>Guia de changelog acessível pela interface web</li>
+          <li>Múltiplas tasks FreeRTOS: sensores (core 1) e manutenção (core 0), com seções críticas protegendo dados compartilhados e logs</li>
+          <li>Interrupção de hardware no botão BOOT para pausar/retomar o rastreamento</li>
+          <li>Gerenciamento de energia: modem sleep do Wi-Fi e deep sleep noturno opcional configurável via web</li>
+          <li>Persistência do histórico de 24h em NVS, sobrevivendo a reinícios e ao deep sleep</li>
+          <li>Medição real de uso de CPU, stack das tasks e tabela de tasks com dados reais do FreeRTOS</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v9</span>
+        <ul>
+          <li>Validação das leituras do DHT11 com descarte de valores inválidos</li>
+          <li>Troca de rede Wi-Fi aplicada após responder a requisição, sem derrubar a conexão</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v8</span>
+        <ul>
+          <li>Área de configuração via web: frequência dos sensores, parâmetros de controle e credenciais Wi-Fi persistidos em NVS</li>
+          <li>Reconexão Wi-Fi por máquina de estado não-bloqueante</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v7</span>
+        <ul>
+          <li>Buffer de performance com séries temporais de heap livre e heap mínimo</li>
+          <li>Tempo de execução das cinco funções principais exposto em /perfdata</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v6</span>
+        <ul>
+          <li>Dashboard redesenhado com painel solar em destaque e glow dinâmico nos LDRs</li>
+          <li>Navbar fixa, página /logs com níveis Erro/Warning/Info e exportação .txt/.csv</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v5</span>
+        <ul>
+          <li>Página de gráficos 24h com Chart.js: temperatura, umidade, LDR médio e servos</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v4</span>
+        <ul>
+          <li>Buffer circular de histórico com 288 registros (cobertura de 24 horas)</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v3</span>
+        <ul>
+          <li>Servidor web embarcado com dashboard em tempo real via /dados</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v2</span>
+        <ul>
+          <li>Display OLED SSD1306 e leitura de temperatura/umidade com DHT11</li>
+        </ul>
+      </div>
+
+      <div class='ver'><span class='v-tag'>v1</span>
+        <ul>
+          <li>Versão inicial: rastreamento solar com 4 LDRs, controle proporcional e servos</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</body></html>
+</body></html>
