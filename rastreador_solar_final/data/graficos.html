@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gráficos 24h</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<script src="/app.js"></script>
+
+<div class="max-w">
+  <h1>📈 Histórico de 24 Horas</h1>
+  <p class="sub">Dados coletados a cada 5 minutos · Buffer circular de 288 registros · Timestamps reais via NTP — os dados sobrevivem a deep sleep e desligamento, com o dia de cada registro identificado</p>
+  <button class="refresh-btn" onclick="load()">↻ Atualizar gráficos</button>
+  <div class="info" id="info"><div class="chip">Carregando...</div></div>
+  <div id="load">⏳ Buscando dados do ESP32...</div>
+  <div id="charts" style="display:none;flex-direction:column;gap:16px">
+    <div class="sec">
+      <div class="sec-title">🗓️ Registro de testes — armazenamento de longo prazo</div>
+      <div class="teste-cards" id="testeCards"></div>
+      <table class="tab-testes">
+        <thead><tr><th>Data do teste</th><th>Registros</th><th>Primeiro dado</th><th>Último dado</th><th>Cobertura</th></tr></thead>
+        <tbody id="testeLinhas"></tbody>
+      </table>
+    </div>
+    <div class="sec"><div class="sec-title">🌡️ Temperatura (°C)</div><canvas id="cT"></canvas></div>
+    <div class="sec"><div class="sec-title">💧 Umidade (%)</div><canvas id="cU"></canvas></div>
+    <div class="sec"><div class="sec-title">☀️ Luminosidade LDR média</div><canvas id="cL"></canvas></div>
+    <div class="sec"><div class="sec-title">🔧 Posição dos Servos (graus)</div><canvas id="cS"></canvas></div>
+  </div>
+</div>
+
+<script>
+let C = {};
+
+// Agrupa o histórico por data real (NTP) e monta a evidência de
+// armazenamento de longo prazo: dias testados, intervalo e boots sobrevividos.
+function montarRegistroTestes(d) {
+  const porDia = new Map();
+  d.dados.forEach(r => {
+    if (!r.e) return;
+    const dt = new Date(r.e * 1000);
+    const chave = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (!porDia.has(chave)) porDia.set(chave, []);
+    porDia.get(chave).push(r.e);
+  });
+
+  const linhas = [...porDia.entries()].map(([data, epochs]) => {
+    const ini = new Date(Math.min(...epochs) * 1000);
+    const fim = new Date(Math.max(...epochs) * 1000);
+    const hh = e => e.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const horas = ((Math.max(...epochs) - Math.min(...epochs)) / 3600).toFixed(1);
+    return `<tr><td class='td-data'>${data}</td><td>${epochs.length}</td>` +
+           `<td>${hh(ini)}</td><td>${hh(fim)}</td><td>${horas} h</td></tr>`;
+  }).join('');
+  document.getElementById('testeLinhas').innerHTML = linhas ||
+    `<tr><td colspan='5' style='color:#6b7280'>Aguardando sincronização NTP para datar os registros.</td></tr>`;
+
+  const epochs = d.dados.filter(r => r.e).map(r => r.e);
+  const desde = epochs.length
+    ? new Date(Math.min(...epochs) * 1000).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '—';
+  document.getElementById('testeCards').innerHTML =
+    `<div class='teste-card'><div class='tc-v'>${desde}</div><div class='tc-l'>Armazenando desde</div></div>` +
+    `<div class='teste-card'><div class='tc-v'>${porDia.size}</div><div class='tc-l'>Dias com testes registrados</div></div>` +
+    `<div class='teste-card'><div class='tc-v'>${d.boots ?? '—'}</div><div class='tc-l'>Reinicializações sobrevividas (NVS)</div></div>`;
+}
+
+// Rótulos do eixo X: hora sempre; o dia (dd/mm) aparece no primeiro ponto
+// e em toda troca de dia — assim dados de dias diferentes ficam distinguíveis.
+function montarRotulos(dados) {
+  const rotulos = dados.map(rotuloRegistro);
+  return {
+    labels: rotulos.map((r, i) => {
+      const diaAnterior = i > 0 ? rotulos[i - 1].dia : null;
+      return (r.dia && r.dia !== diaAnterior) ? `${r.dia} ${r.hora}` : r.hora;
+    }),
+    fulls: rotulos.map(r => r.full),
+    dias:  [...new Set(rotulos.map(r => r.dia).filter(Boolean))],
+  };
+}
+
+function opcoes(lbl, mn, mx, fulls) {
+  return {
+    responsive: true,
+    animation: { duration: 500 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0d1f38', borderColor: '#1d3557', borderWidth: 1,
+        titleColor: '#9ca3af', bodyColor: '#e6edf3',
+        callbacks: {
+          title: items => fulls[items[0].dataIndex],
+          label: c => lbl + ': ' + c.parsed.y,
+        },
+      },
+    },
+    scales: {
+      x: { ticks: { color: '#6b7280', maxTicksLimit: 10, font: { size: 9 } }, grid: { color: '#1d3557' } },
+      y: { min: mn, max: mx, ticks: { color: '#6b7280', font: { size: 9 } }, grid: { color: '#1d3557' } },
+    },
+  };
+}
+
+function mk(id, lb, data, cor, lbl, mn, mx, fulls) {
+  if (C[id]) C[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, 200);
+  g.addColorStop(0, cor + '44'); g.addColorStop(1, cor + '00');
+  C[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: lb, datasets: [{ data, borderColor: cor, backgroundColor: g, borderWidth: 2, pointRadius: data.length > 60 ? 0 : 3, tension: 0.35, fill: true }] },
+    options: opcoes(lbl, mn, mx, fulls),
+  });
+}
+
+function load() {
+  document.getElementById('load').style.display = 'block';
+  document.getElementById('charts').style.display = 'none';
+  fetch('/historico').then(r => r.json()).then(d => {
+    document.getElementById('load').style.display = 'none';
+    if (!d.dados || !d.dados.length) {
+      document.getElementById('load').style.display = 'block';
+      document.getElementById('load').innerText = '⏳ Aguarde 5 minutos para o primeiro registro.';
+      return;
+    }
+    document.getElementById('charts').style.display = 'flex';
+    montarRegistroTestes(d);
+
+    const { labels, fulls, dias } = montarRotulos(d.dados);
+    const T = d.dados.map(r => r.temp), U = d.dados.map(r => r.umid);
+    const L = d.dados.map(r => r.ldr), SH = d.dados.map(r => r.sh), SV = d.dados.map(r => r.sv);
+    const cob = Math.round(d.dados.length * 5 / 60 * 10) / 10;
+    const semRelogio = d.dados.filter(r => !r.e).length;
+
+    let chips = `<div class='chip'>📊 <b>${d.dados.length}</b> registros (${cob}h)</div>`;
+    chips += dias.length
+      ? `<div class='chip'>📅 Dias: <b>${dias.join(' · ')}</b></div>`
+      : `<div class='chip'>📅 <b>Aguardando NTP</b></div>`;
+    if (semRelogio > 0 && dias.length) chips += `<div class='chip'>⚠️ <b>${semRelogio}</b> registros sem relógio</div>`;
+    chips += `<div class='chip'>🌡️ <b>${Math.min(...T).toFixed(1)}–${Math.max(...T).toFixed(1)}°C</b></div>`;
+    chips += `<div class='chip'>💧 <b>${Math.min(...U).toFixed(1)}–${Math.max(...U).toFixed(1)}%</b></div>`;
+    document.getElementById('info').innerHTML = chips;
+
+    mk('cT', labels, T, '#ff7b72', '°C', Math.floor(Math.min(...T)) - 2, Math.ceil(Math.max(...T)) + 2, fulls);
+    mk('cU', labels, U, '#58a6ff', '%', Math.floor(Math.min(...U)) - 5, Math.ceil(Math.max(...U)) + 5, fulls);
+    mk('cL', labels, L, '#fbbf24', 'ADC', Math.max(0, Math.min(...L) - 200), Math.min(4095, Math.max(...L) + 200), fulls);
+
+    if (C['cS']) C['cS'].destroy();
+    const ctx = document.getElementById('cS').getContext('2d');
+    const gH = ctx.createLinearGradient(0, 0, 0, 200); gH.addColorStop(0, '#ffa65744'); gH.addColorStop(1, '#ffa65700');
+    const gV = ctx.createLinearGradient(0, 0, 0, 200); gV.addColorStop(0, '#d2a8ff44'); gV.addColorStop(1, '#d2a8ff00');
+    const opt = opcoes('graus', 0, 360, fulls);
+    opt.plugins.legend = { display: true, labels: { color: '#6b7280', boxWidth: 10, font: { size: 10 } } };
+    C['cS'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Pan (H, 0–360° contínuo)', data: SH, borderColor: '#ffa657', backgroundColor: gH, borderWidth: 2, pointRadius: d.dados.length > 60 ? 0 : 3, tension: 0.35, fill: true },
+          { label: 'Tilt (V, 20–160°)',        data: SV, borderColor: '#d2a8ff', backgroundColor: gV, borderWidth: 2, pointRadius: d.dados.length > 60 ? 0 : 3, tension: 0.35, fill: true },
+        ],
+      },
+      options: opt,
+    });
+  }).catch(() => { document.getElementById('load').innerText = '❌ Erro ao carregar dados.'; });
+}
+load();
+</script>
+</body>
+</html>

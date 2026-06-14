@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Changelog</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<script src="/app.js"></script>
+
+<div class="max-w">
+  <h1>📜 Changelog</h1>
+  <p class="sub">Histórico de versões do firmware do Rastreador Solar</p>
+  <div class="sec">
+
+    <div class="ver"><span class="v-tag atual">v13 · atual</span>
+      <ul>
+        <li>Botão BOOT com comportamento duplo: pressão curta (&lt;1,5 s) pausa/retoma o rastreamento; pressão longa (≥1,5 s) aciona retorno HOME — ambos os servos voltam à posição inicial (V=90°, H=0°) e o rastreamento fica pausado até nova pressão curta</li>
+        <li>Limite físico de rotação horizontal: quando a posição estimada do servo H ultrapassa 340° o sistema inicia automaticamente retorno anti-horário até 10°, impedindo que o fio de conexão se enrole na maquete</li>
+        <li>Timeout de busca do sol: se o servo H girar por mais de 5 s sem encontrar equilíbrio (erro dentro da zona morta), para completamente por 2 s e reinicia a varredura — elimina rotação contínua em ambientes com luz difusa</li>
+        <li>Máquina de estado do servo horizontal com três modos: Rastreando, Pausa de Busca e Retornando Home, exibidos em tempo real no dashboard web</li>
+        <li>ISR do botão atualizada para capturar CHANGE (borda de descida e subida), permitindo medir a duração da pressão sem polling bloqueante</li>
+      </ul>
+    </div>
+    <div class="ver"><span class="v-tag">v12</span>
+      <ul>
+        <li>Servo horizontal em operação: eixo pan migrado para servo de rotação contínua (360°), com velocidade proporcional ao erro esquerda/direita dos LDRs e posição estimada exibida no dashboard e nos gráficos</li>
+        <li>Correção da perda de dados dos gráficos: persistência do histórico migrada da NVS (pequena demais para o blob de 7 KB) para arquivo no LittleFS, com gravação atômica e a cada registro de 5 minutos</li>
+        <li>Deep sleep após 1 minuto de escuridão contínua (antes 2 minutos)</li>
+        <li>Mensagem "DEEP SLEEP" em fonte grande e com moldura no OLED, permanecendo visível durante todo o sono</li>
+        <li>Professor Fábio Garcez Betio adicionado à página Sobre</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v11</span>
+      <ul>
+        <li>Login com perfis separados: visitante (leitura) e administrador (leitura + configurações), com sessões em cookie HttpOnly, validade de 8 h e bloqueio de 30 s após 5 tentativas erradas</li>
+        <li>Página de configurações e APIs de escrita restritas ao administrador; senhas dos dois perfis alteráveis pela web e persistidas em NVS</li>
+        <li>Registro de testes nos gráficos: tabela por data com nº de registros, primeiro/último dado e cobertura, evidenciando o armazenamento de longo prazo</li>
+        <li>Contador de reinicializações persistido em NVS, exibido como prova de que o histórico sobrevive a boots e deep sleep</li>
+        <li>Interface web migrada para LittleFS: HTML, CSS e JS servidos como arquivos da flash, separados do código principal</li>
+        <li>Sincronização de relógio via NTP: cada registro do histórico carrega data/hora absoluta (epoch), identificando de qual dia o dado foi coletado</li>
+        <li>Gráficos com rótulos de dia no eixo X, data completa no tooltip e chips com os dias cobertos pelo histórico</li>
+        <li>Deep sleep antecipado: ativação após 2 minutos sem luz nos LDRs (antes 10 minutos)</li>
+        <li>Aviso de entrada em deep sleep: mensagem persistente no OLED, 3 beeps no buzzer e contagem regressiva no dashboard</li>
+        <li>Atualização do OLED com taxa própria configurável (padrão 500 ms) e I2C a 400 kHz, eliminando saturação do barramento</li>
+        <li>Snapshot do histórico sob seção crítica nas rotas de salvamento e leitura, evitando leituras inconsistentes</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v10</span>
+      <ul>
+        <li>Guia de changelog acessível pela interface web</li>
+        <li>Múltiplas tasks FreeRTOS: sensores (core 1) e manutenção (core 0), com seções críticas protegendo dados compartilhados e logs</li>
+        <li>Interrupção de hardware no botão BOOT para pausar/retomar o rastreamento</li>
+        <li>Gerenciamento de energia: modem sleep do Wi-Fi e deep sleep noturno opcional configurável via web</li>
+        <li>Persistência do histórico de 24h em NVS, sobrevivendo a reinícios e ao deep sleep</li>
+        <li>Medição real de uso de CPU, stack das tasks e tabela de tasks com dados reais do FreeRTOS</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v9</span>
+      <ul>
+        <li>Validação das leituras do DHT11 com descarte de valores inválidos</li>
+        <li>Troca de rede Wi-Fi aplicada após responder a requisição, sem derrubar a conexão</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v8</span>
+      <ul>
+        <li>Área de configuração via web: frequência dos sensores, parâmetros de controle e credenciais Wi-Fi persistidos em NVS</li>
+        <li>Reconexão Wi-Fi por máquina de estado não-bloqueante</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v7</span>
+      <ul>
+        <li>Buffer de performance com séries temporais de heap livre e heap mínimo</li>
+        <li>Tempo de execução das cinco funções principais exposto em /perfdata</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v6</span>
+      <ul>
+        <li>Dashboard redesenhado com painel solar em destaque e glow dinâmico nos LDRs</li>
+        <li>Navbar fixa, página /logs com níveis Erro/Warning/Info e exportação .txt/.csv</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v5</span>
+      <ul>
+        <li>Página de gráficos 24h com Chart.js: temperatura, umidade, LDR médio e servos</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v4</span>
+      <ul>
+        <li>Buffer circular de histórico com 288 registros (cobertura de 24 horas)</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v3</span>
+      <ul>
+        <li>Servidor web embarcado com dashboard em tempo real via /dados</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v2</span>
+      <ul>
+        <li>Display OLED SSD1306 e leitura de temperatura/umidade com DHT11</li>
+      </ul>
+    </div>
+
+    <div class="ver"><span class="v-tag">v1</span>
+      <ul>
+        <li>Versão inicial: rastreamento solar com 4 LDRs, controle proporcional e servos</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

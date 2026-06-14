@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-body">
+
+<div class="login-card">
+  <div class="login-logo">☀️</div>
+  <h1 class="login-title">Rastreador Solar</h1>
+  <p class="login-sub">Identifique-se para acessar o sistema</p>
+
+  <div class="login-tabs">
+    <button class="login-tab ativo" id="tabUser" onclick="setPerfil('user')">👤 Visitante</button>
+    <button class="login-tab" id="tabAdm" onclick="setPerfil('adm')">🔑 Administrador</button>
+  </div>
+
+  <p class="login-desc" id="desc">Acesso de leitura: dashboard, gráficos, performance e logs.</p>
+
+  <input type="password" id="senha" class="login-input" placeholder="Senha"
+         onkeydown="if(event.key==='Enter')entrar()" autofocus>
+  <button class="btn btn-primary login-btn" id="btnEntrar" onclick="entrar()">Entrar</button>
+  <div class="login-erro" id="erro"></div>
+</div>
+
+<script>
+let perfil = 'user';
+
+function setPerfil(p) {
+  perfil = p;
+  document.getElementById('tabUser').classList.toggle('ativo', p === 'user');
+  document.getElementById('tabAdm').classList.toggle('ativo', p === 'adm');
+  document.getElementById('desc').textContent = p === 'adm'
+    ? 'Acesso completo: leitura + configurações do sistema, Wi-Fi e senhas.'
+    : 'Acesso de leitura: dashboard, gráficos, performance e logs.';
+  document.getElementById('erro').textContent = '';
+  document.getElementById('senha').focus();
+}
+
+if (new URLSearchParams(location.search).get('adm') === '1') {
+  setPerfil('adm');
+  document.getElementById('erro').textContent = 'Esta área exige perfil de administrador.';
+}
+
+async function entrar() {
+  const btn = document.getElementById('btnEntrar');
+  const erro = document.getElementById('erro');
+  btn.disabled = true; erro.textContent = '';
+  try {
+    const body = new URLSearchParams({ perfil, senha: document.getElementById('senha').value });
+    const r = await fetch('/auth', { method: 'POST', body });
+    const d = await r.json();
+    if (d.ok) { location.href = '/'; return; }
+    erro.textContent = d.erro || 'Falha no login';
+  } catch {
+    erro.textContent = 'Erro de comunicação com o ESP32';
+  }
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
